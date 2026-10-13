@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { User } from 'firebase/auth';
 import { initAuth } from './lib/auth';
-import { Home, Calendar, Library, BarChart2, MessageSquare, BookOpen } from 'lucide-react';
+import { Home, Calendar, Library, BarChart2, MessageSquare, BookOpen, Key } from 'lucide-react';
 import { auth } from './lib/firebase';
 import Login from './components/Login';
 import { HomeDashboard } from './components/HomeDashboard';
@@ -22,6 +22,7 @@ import { Module, Topic } from './types';
 import { SOMAProvider, useSOMA } from './lib/realtime';
 import { InstallPwaBanner } from './components/InstallPwaBanner';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { ApiKeySettingsModal } from './components/common/ApiKeySettingsModal';
 
 export default function App() {
   return (
@@ -47,8 +48,21 @@ function AppContent() {
   } | null>(null);
   const [targetDay, setTargetDay] = useState<any>(null);
   const [practiceTarget, setPracticeTarget] = useState<{ moduleId: string; topicId: string } | null>(null);
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState('');
   
   const { user, loading } = useSOMA();
+
+  useEffect(() => {
+    const handleOpenSettings = (e: any) => {
+      if (e?.detail?.error) {
+        setApiKeyError(e.detail.error);
+      }
+      setIsApiKeyModalOpen(true);
+    };
+    window.addEventListener('soma-open-api-settings', handleOpenSettings);
+    return () => window.removeEventListener('soma-open-api-settings', handleOpenSettings);
+  }, []);
 
   if (loading) {
     return (
@@ -62,7 +76,24 @@ function AppContent() {
   }
 
   if (!user) {
-    return <Login />;
+    return (
+      <>
+        <Login />
+        <div className="fixed top-4 right-4 z-50">
+          <button 
+            onClick={() => setIsApiKeyModalOpen(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-white/90 backdrop-blur-md shadow-lg rounded-xl text-xs font-semibold text-neutral-700 hover:text-blue-600 border border-neutral-200 transition-all"
+          >
+            <Key className="w-4 h-4 text-blue-600" /> SOMA Settings
+          </button>
+        </div>
+        <ApiKeySettingsModal 
+          isOpen={isApiKeyModalOpen} 
+          onClose={() => setIsApiKeyModalOpen(false)} 
+          initialError={apiKeyError}
+        />
+      </>
+    );
   }
 
   const renderContent = () => {
@@ -165,7 +196,21 @@ function AppContent() {
             </button>
           );
         })}
+        <button 
+          onClick={() => setIsApiKeyModalOpen(true)}
+          className="flex flex-col items-center p-2 rounded-xl text-neutral-400 hover:text-blue-600 transition-colors"
+          title="SOMA Settings & API Key"
+        >
+          <Key size={22} />
+          <span className="text-[10px] mt-1">Settings</span>
+        </button>
       </nav>
+
+      <ApiKeySettingsModal 
+        isOpen={isApiKeyModalOpen} 
+        onClose={() => setIsApiKeyModalOpen(false)} 
+        initialError={apiKeyError}
+      />
     </div>
   );
 }

@@ -18,17 +18,27 @@ let aiClientInstance: GoogleGenAI | null = null;
 const ENCODED_FALLBACK_KEY = "QVEuQWI4Uk42THpPYXhLOXdESnlsRE9ZZFFqY0Q3TjhZNVpFY2NESGxFbTJZUUpaN2F1QUE=";
 const getFallbackKey = () => Buffer.from(ENCODED_FALLBACK_KEY, 'base64').toString('utf8');
 
-export async function resolveGeminiApiKey(): Promise<string> {
-  if (cachedApiKey) return cachedApiKey;
+export async function resolveGeminiApiKey(req?: express.Request): Promise<string> {
+  // 1. Check header x-gemini-api-key or body apiKey
+  const headerKey = req?.headers?.['x-gemini-api-key'] as string;
+  if (headerKey && headerKey.trim()) {
+    return headerKey.trim().replace(/^["']|["']$/g, "");
+  }
+  const bodyKey = req?.body?.apiKey;
+  if (bodyKey && typeof bodyKey === 'string' && bodyKey.trim()) {
+    return bodyKey.trim().replace(/^["']|["']$/g, "");
+  }
 
-  // 1. Check explicit GEMINI_API_KEY or GOOGLE_API_KEY env var
+  if (cachedApiKey && !cachedApiKey.includes('FALLBACK')) return cachedApiKey;
+
+  // 2. Check explicit GEMINI_API_KEY or GOOGLE_API_KEY env var
   const directKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-  if (directKey && directKey.trim()) {
+  if (directKey && directKey.trim() && !directKey.includes('FALLBACK')) {
     cachedApiKey = directKey.trim().replace(/^["']|["']$/g, "");
     return cachedApiKey;
   }
 
-  // 2. Dynamically fetch live key from GCP API Keys service using service account credentials
+  // 3. Dynamically fetch live key from GCP API Keys service using service account credentials
   try {
     const credsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
     if (credsJson) {
@@ -70,9 +80,17 @@ export async function resolveGeminiApiKey(): Promise<string> {
     console.warn("Could not dynamically resolve API key from GCP API keys API:", err?.message);
   }
 
-  // 3. Fallback to base64-encoded runtime key for external custom domain hosting (soma-app.me)
-  cachedApiKey = getFallbackKey();
-  return cachedApiKey;
+  if (directKey && directKey.trim()) {
+    return directKey.trim().replace(/^["']|["']$/g, "");
+  }
+
+  // If running in development environment with fallback key allowed or fallback check
+  const fallback = getFallbackKey();
+  if (fallback && !fallback.includes('QVEu')) {
+    return fallback;
+  }
+
+  throw new Error("GEMINI_API_KEY_MISSING");
 }
 
 export function getAIClient(apiKey?: string): GoogleGenAI {
@@ -100,8 +118,8 @@ const ai: GoogleGenAI = new Proxy({} as GoogleGenAI, {
 
 const FALLBACK_MODELS = ["gemini-3.8-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
 
-async function callGeminiWithRetry(params: any, retries = 1, delay = 500) {
-  const key = await resolveGeminiApiKey();
+async function callGeminiWithRetry(params: any, req?: express.Request, retries = 1, delay = 500) {
+  const key = await resolveGeminiApiKey(req);
   const client = getAIClient(key);
   const requestedModel = params.model || "gemini-3.8-flash";
   const modelQueue = [requestedModel, ...FALLBACK_MODELS.filter(m => m !== requestedModel)];
