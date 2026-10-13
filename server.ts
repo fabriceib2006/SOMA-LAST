@@ -15,19 +15,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let cachedApiKey: string | null = null;
 let aiClientInstance: GoogleGenAI | null = null;
 
-const KNOWN_ACTIVE_API_KEY = process.env.GEMINI_API_KEY;
-
 export async function resolveGeminiApiKey(): Promise<string> {
   if (cachedApiKey) return cachedApiKey;
 
-  // 0. Check explicit GEMINI_API_KEY or GOOGLE_API_KEY env var first
+  // 1. Check explicit GEMINI_API_KEY or GOOGLE_API_KEY env var
   const directKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-  if (directKey && directKey.trim() && directKey !== KNOWN_ACTIVE_API_KEY && !directKey.startsWith("AQ.")) {
+  if (directKey && directKey.trim()) {
     cachedApiKey = directKey.trim().replace(/^["']|["']$/g, "");
     return cachedApiKey;
   }
 
-  // 1. Dynamically fetch live key from GCP API Keys service using service account credentials
+  // 2. Dynamically fetch live key from GCP API Keys service using service account credentials
   try {
     const credsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
     if (credsJson) {
@@ -69,14 +67,11 @@ export async function resolveGeminiApiKey(): Promise<string> {
     console.warn("Could not dynamically resolve API key from GCP API keys API:", err?.message);
   }
 
-  // 2. Fallback to known active verified API key
-  cachedApiKey = KNOWN_ACTIVE_API_KEY;
-  process.env.GEMINI_API_KEY = KNOWN_ACTIVE_API_KEY;
-  return cachedApiKey;
+  return "";
 }
 
 export function getAIClient(apiKey?: string): GoogleGenAI {
-  const key = apiKey || cachedApiKey || KNOWN_ACTIVE_API_KEY;
+  const key = apiKey || cachedApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "";
   if (!aiClientInstance || (apiKey && apiKey !== cachedApiKey)) {
     aiClientInstance = new GoogleGenAI({
       apiKey: key,
