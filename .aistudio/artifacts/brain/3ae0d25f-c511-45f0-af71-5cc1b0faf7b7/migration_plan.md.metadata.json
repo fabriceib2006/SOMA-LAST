@@ -1,0 +1,6 @@
+{
+  "summary":  "Plan for migrating legacy base64 files from Firestore to Firebase Cloud Storage.",
+  "updatedAt":  "2026-10-08T19:25:46.423516644Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

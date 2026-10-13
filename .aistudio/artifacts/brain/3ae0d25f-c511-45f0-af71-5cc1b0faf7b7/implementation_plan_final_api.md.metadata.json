@@ -1,0 +1,6 @@
+{
+  "summary": "Plan to correct the API key source by creating an API Key using OAuth 2.0 Credentials if necessary, or switching to the correct Google Cloud Project in AI Studio.",
+  "updatedAt": "2026-10-07T11:06:41.406206731Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

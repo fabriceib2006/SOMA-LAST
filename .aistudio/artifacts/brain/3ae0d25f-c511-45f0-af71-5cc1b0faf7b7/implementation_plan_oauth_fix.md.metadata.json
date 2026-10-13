@@ -1,0 +1,6 @@
+{
+  "summary": "Plan to fix the API key rejection by using the provided OAuth 2.0 Client Secret in place of a standard API Key.",
+  "updatedAt": "2026-10-07T11:29:28.529381067Z",
+  "requestFeedback": true,
+  "userFacing": true
+}
